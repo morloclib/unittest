@@ -1,0 +1,11 @@
+name: unittest
+version: 0.1.0
+homepage: https://github.com/morloclib/unittest
+synopsis: Unit test harness for morloc libraries
+description: Composable checks, labeled groups and a summary runner, judged in Python whatever language is under test.
+category: testing
+license: MIT
+author: "Zebulun Arendsee"
+maintainer: "z@morloc.io"
+github: https://github.com/morloclib/unittest
+bug-reports: https://github.com/morloclib/unittest

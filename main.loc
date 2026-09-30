@@ -1,0 +1,174 @@
+module unittest
+  ( Results
+  , Test
+  , suite
+  , suiteE
+  , finish
+  , group
+  , groupE
+  , testEqual
+  , testTrue
+  , testFalse
+  , testNear
+  , testGe
+  , testInRange
+  , testLength
+  , testNonEmpty
+  , testContains
+  , testSubset
+  , testSameElements
+  , testNoDuplicates
+  )
+
+import root
+
+-- Unit test harness shared by the standard library test suites.
+--
+-- A test takes the running tally and returns it updated, so checks chain with
+-- composition and run right to left:
+--
+--   testArith :: Test
+--   testArith = testEqual "add" (1 + 2) 3 . testTrue "lt" (1 < 2)
+--
+--   test = suite (group "Logic" testLogic . group "Arithmetic" testArith)
+--
+-- Every check runs in Python whatever language is under test. The values
+-- cross into the Python pool and are compared there, so an implementation is
+-- never judged by its own equality. A suite passing a type not mapped below
+-- (a Vector, a Table) supplies its own `type Py =>` mapping.
+
+type Py => Unit = "None"
+type Py => Bool = "bool"
+type Py => Int = "int"
+type Py => Real = "float"
+type Py => Str = "str"
+type Py => U8 = "int"
+type Py => U16 = "int"
+type Py => U32 = "int"
+type Py => U64 = "int"
+type Py => I8 = "int"
+type Py => I16 = "int"
+type Py => I32 = "int"
+type Py => I64 = "int"
+type Py => F32 = "float"
+type Py => F64 = "float"
+type Py => List a = "list" a
+type Py => Tuple2 a b = "tuple" a b
+type Py => Tuple3 a b c = "tuple" a b c
+type Py => Tuple4 a b c d = "tuple" a b c d
+type Py => Tuple5 a b c d e = "tuple" a b c d e
+
+--' Running tally of (failures, tests)
+type Results = (Int, Int)
+
+--' A block of checks that adds its outcomes to the tally
+type Test = Results -> Results
+
+source Py from "harness.py"
+  ( "testEqual"
+  , "testTrue"
+  , "testFalse"
+  , "testNear"
+  , "testGe"
+  , "testInRange"
+  , "testLength"
+  , "testNonEmpty"
+  , "testContains"
+  , "testSubset"
+  , "testSameElements"
+  , "testNoDuplicates"
+  , "printGroup"
+  , "printSummary"
+  )
+
+--' Pass if the observed value structurally equals the expected one
+testEqual
+  :: Str -- description
+  -> a   -- observed
+  -> a   -- expected
+  -> Results -> Results
+
+testTrue :: Str -> Bool -> Results -> Results
+
+testFalse :: Str -> Bool -> Results -> Results
+
+--' Pass if the observed value is within an absolute tolerance of the expected
+testNear
+  :: Str  -- description
+  -> Real -- tolerance
+  -> Real -- observed
+  -> Real -- expected
+  -> Results -> Results
+
+--' Pass if the observed value is at least the bound
+testGe
+  :: Str -- description
+  -> a   -- observed
+  -> a   -- bound
+  -> Results -> Results
+
+--' Pass if the observed value lies in the closed interval
+testInRange
+  :: Str -- description
+  -> a   -- observed
+  -> a   -- lower bound
+  -> a   -- upper bound
+  -> Results -> Results
+
+testLength
+  :: Str -- description
+  -> [a] -- observed
+  -> Int -- expected length
+  -> Results -> Results
+
+testNonEmpty :: Str -> Str -> Results -> Results
+
+--' Pass if the element occurs in the list
+testContains
+  :: Str -- description
+  -> [a] -- observed
+  -> a   -- element
+  -> Results -> Results
+
+--' Pass if every element of the first list occurs in the second
+testSubset
+  :: Str -- description
+  -> [a] -- observed
+  -> [a] -- superset
+  -> Results -> Results
+
+--' Pass if the lists are equal after sorting
+testSameElements
+  :: Str -- description
+  -> [a] -- observed
+  -> [a] -- expected
+  -> Results -> Results
+
+testNoDuplicates :: Str -> [a] -> Results -> Results
+
+printGroup :: Str -> a -> a
+
+--' Print the tally if every check passed, otherwise raise
+printSummary :: Results -> Results
+
+--' Label a block of tests; the label prints before the block runs
+group :: Str -> Test -> Test
+group msg tests results = tests (printGroup msg results)
+
+--' `group` for a block that performs effects
+groupE :: Str -> (Results -> <e> Results) -> Results -> <e> Results
+groupE msg tests results = tests (printGroup msg results)
+
+--' Print a summary of the tally; fail, exiting nonzero, if any check failed
+finish :: Results -> Bool
+finish results = 0 == (.0 (printSummary results))
+
+--' Run a block from an empty tally and `finish` it
+suite :: Test -> Bool
+suite tests = finish (tests (0, 0))
+
+--' `suite` for a block that performs effects
+suiteE :: (Results -> <e> Results) -> <e> Bool
+suiteE tests = do
+  results <- tests (0, 0)
+  finish results
